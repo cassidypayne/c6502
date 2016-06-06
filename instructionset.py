@@ -205,7 +205,6 @@ def JSR(cpu, mode, op):
 
 
 def LDA(cpu, mode, op):
-    print "%s %i" % (mode, op)
     mem = op if mode == 'imm' else cpu.ram(op)
     cpu.acc(mem)
     cpu.n(mem >> 7)
