@@ -166,16 +166,16 @@ def process(str_in):
 
 
 if __name__ == '__main__':
-    print 'hello'
+    print('hello')
 
     while True:
-        str_in = raw_input(hex(cur_addr).rstrip('L') + '> ')
+        str_in = input(hex(cur_addr).rstrip('L') + '> ')
         cmd_pkg = process(str_in)
         if 'exit' in cmd_pkg:
-            print 'goodbye'
+            print('goodbye')
             break
         elif '!!!' in cmd_pkg:
-            print '%s...' % cmd_pkg[1]
+            print('%s...' % cmd_pkg[1])
         elif 'pass' in cmd_pkg:
             pass
         else:
@@ -183,5 +183,5 @@ if __name__ == '__main__':
             args = cmd_pkg[1:]
             output = cmd(*args)
             if output:
-                print output.strip()
+                print(output.strip())
             pass
