@@ -169,7 +169,11 @@ if __name__ == '__main__':
     print('hello')
 
     while True:
-        str_in = input(hex(cur_addr).rstrip('L') + '> ')
+        try:
+            str_in = input(hex(cur_addr).rstrip('L') + '> ')
+        except EOFError:
+            print('goodbye')
+            break
         cmd_pkg = process(str_in)
         if 'exit' in cmd_pkg:
             print('goodbye')
