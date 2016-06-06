@@ -40,7 +40,6 @@ class C6502:
             val = ()
             for bitpos in range(8):
                 val += (mem & (0x1 << bitpos),)
-            print val
             for bit in val:
                 p = p | bit
             self._set_flags(p)
@@ -105,7 +104,6 @@ class C6502:
     def _addr_rel(self, mem):
         negative = (mem >> 7) & 0x1
         offset = 0 - (256 - mem) if negative else mem
-        print self.pc() + offset
         return self.pc() + offset
 
     def _addr_zpg(self, mem):
