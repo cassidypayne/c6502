@@ -130,7 +130,11 @@ class C6502:
 
     def _get_bytes(self):
         opcode, arg = self.ram(self.pc()), None
-        size = instructions.get_size(opcode)
+        try:
+            size = instructions.get_size(opcode)
+        except KeyError:
+            print('invalid opcode! passing NOP...')
+            opcode, size = 0xea, instructions.get_size(0xea)
         if size > 1:
             lb = self.ram(self.pc() + 1)
             if size == 2:
