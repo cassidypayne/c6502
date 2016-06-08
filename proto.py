@@ -22,6 +22,10 @@ def step():
     cpu.step()
 
 
+def reset():
+    global cpu
+    cpu = C6502()
+
 reg = {
     'acc': cpu.acc,
     'x': cpu.x,
@@ -109,6 +113,7 @@ def writebytestr(mem):  # special case: type(mem) == 'str'
 
 cmds = {
     'step': (step,),
+    'reset': (reset,),
     'cc': (jumpto,),
     'mem': (pram,),
     'acc': (preg, 'acc'),
