@@ -1,16 +1,18 @@
 from c6502 import C6502
 
 #
-# globals
+# simple debugger / memory editor for c6502.
 
 cpu = C6502()
 cur_addr = 0x0
 reg_names = ('acc', 'x', 'y', 'sp', 'pc', 'p')
 flg_names = 'nv-bdizc'
 
-
 #
 # commands. int in, str out (except writebytestr).
+
+def load_file(filename, addr):
+    pass
 
 
 def jumpto(addr):
@@ -26,7 +28,6 @@ def reset():
     global cpu
     cpu = C6502()
 
-
 def get_reg(name):
     reg = {
         'acc': cpu.acc,
@@ -40,7 +41,7 @@ def get_reg(name):
 
 
 def preg(name, mem=None):
-    func = get_reg(name) 
+    func = get_reg(name)
     if mem is None:
         val = func()
         return '#%s <- %s' % (hex(val), name)
@@ -68,7 +69,7 @@ def dumpram(stop=None):
     if not stop:
         cur_addr += 1
         return pram(cur_addr - 1)
-    for addr in range(cur_addr, stop):
+    for addr in range(cur_addr, cur_addr + stop):
         out += pram(addr) + '\n'
     return out
 
@@ -118,7 +119,7 @@ cmds = {
     'step': (step,),
     'reset': (reset,),
     'cc': (jumpto,),
-    'mem': (pram,),
+    'pram': (pram,),
     'acc': (preg, 'acc'),
     'x': (preg, 'x'),
     'y': (preg, 'y'),
@@ -128,6 +129,7 @@ cmds = {
     'dmp': (dumpram,),
     'reg': (dumpregs,),
     'flg': (dumpflags,),
+    'load': (load_file,),
     'wri': writebytestr,
 }
 
@@ -175,7 +177,6 @@ def process(str_in):
 
 if __name__ == '__main__':
     print('hello')
-
     while True:
         try:
             str_in = input(hex(cur_addr).rstrip('L') + '> ')
@@ -197,3 +198,4 @@ if __name__ == '__main__':
             if output:
                 print(output.strip())
             pass
+
