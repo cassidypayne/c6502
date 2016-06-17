@@ -19,6 +19,10 @@ def jumpto(addr):
     global cur_addr
     cur_addr = addr % 0x10000
 
+def load_file(filename):
+    with open(filename, 'r') as file_in:
+        pass
+
 
 def step():
     cpu.step()
