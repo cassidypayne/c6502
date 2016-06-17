@@ -26,18 +26,21 @@ def reset():
     global cpu
     cpu = C6502()
 
-reg = {
-    'acc': cpu.acc,
-    'x': cpu.x,
-    'y': cpu.y,
-    'sp': cpu.sp,
-    'pc': cpu.pc,
-    'p': cpu.p
-}
+
+def get_reg(name):
+    reg = {
+        'acc': cpu.acc,
+        'x': cpu.x,
+        'y': cpu.y,
+        'sp': cpu.sp,
+        'pc': cpu.pc,
+        'p': cpu.p
+    }
+    return reg[name]
 
 
 def preg(name, mem=None):
-    func = reg[name]
+    func = get_reg(name) 
     if mem is None:
         val = func()
         return '#%s <- %s' % (hex(val), name)
