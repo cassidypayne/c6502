@@ -17,10 +17,6 @@ def jumpto(addr):
     global cur_addr
     cur_addr = addr % 0x10000
 
-def load_file(filename):
-    with open(filename, 'r') as file_in:
-        pass
-
 
 def step():
     cpu.step()
@@ -132,7 +128,6 @@ cmds = {
     'dmp': (dumpram,),
     'reg': (dumpregs,),
     'flg': (dumpflags,),
-    'load': (load_file,),
     'wri': writebytestr,
 }
 
@@ -152,13 +147,13 @@ def process(str_in):
     if cmd_size == 2:
         try:
             str_in[1] = int(str_in[1], 16)
-        except ValueError:
+        except:
             return '!!!', 'bad input'
     elif cmd_size == 3:
         try:
             str_in[1] = int(str_in[1], 16)
             str_in[2] = int(str_in[2], 16)
-        except ValueError:
+        except:
             return '!!!', 'bad input'
     elif cmd_size != 1:
         return '!!!', 'bad input'
@@ -167,7 +162,7 @@ def process(str_in):
             int(str_in[0], 16)
             bytestr_in = str_in[0]
             return [cmds['wri'], bytestr_in]
-        except ValueError:
+        except:
             return '!!!', 'bad input'
 
     cmd_func = cmds[str_in[0]]
@@ -184,7 +179,7 @@ if __name__ == '__main__':
     while True:
         try:
             str_in = input(hex(cur_addr).rstrip('L') + '> ')
-        except EOFError:
+        except:
             print('goodbye')
             break
         cmd_pkg = process(str_in)
