@@ -1,4 +1,5 @@
 from c6502 import C6502
+from collections import namedtuple
 
 #
 # simple debugger / memory editor for c6502.
@@ -8,198 +9,205 @@ cur_addr = 0x0
 reg_names = ('acc', 'x', 'y', 'sp', 'pc', 'p')
 flg_names = 'nv-bdizc'
 
-#
-# commands. int in, str out (except writebytestr).
+def hexf(i, l=2):
+    return '0x' + hex(i)[2:].zfill(l)
 
-def load_file(filename, addr):
+
+#
+# commands.
+
+def load_file(*args): # filename, addr
     pass
 
 
-def jumpto(addr):
+def jumpto(*args): # addr
     global cur_addr
-    cur_addr = addr % 0x10000
 
-def load_file(filename):
-    with open(filename, 'r') as file_in:
-        pass
+    if not len(args):
+        addr = 0x0
+    elif type(args[0]) is str:
+        addr = int(args[0], base=16) % 0x10000
+    elif type(args[0]) is int:
+        addr = args[0] % 0x10000
+
+    cur_addr = addr
 
 
-def step():
+def step(*args):
     cpu.step()
 
 
-def reset():
+def reset(*args):
     global cpu
     cpu = C6502()
 
-def get_reg(name):
-    reg = {
-        'acc': cpu.acc,
-        'x': cpu.x,
-        'y': cpu.y,
-        'sp': cpu.sp,
-        'pc': cpu.pc,
-        'p': cpu.p
-    }
-    return reg[name]
 
+def pram(*args): # mem, addr
+    mem = args[0]
+    addr = None if not len(args) == 2 else args[1]
 
-def preg(name, mem=None):
-    func = get_reg(name)
-    if mem is None:
-        val = func()
-        return '#%s <- %s' % (hex(val), name)
-    else:
-        func(mem)
-        val = func()
-        return '#%s -> %s (%s)' % (hex(mem), name, hex(val))
-
-
-def pram(addr=None, mem=None):
     if addr is None:
         addr = cur_addr
     if mem is None:
         val = cpu.ram(addr)
-        return '#%s <- %s' % (hex(val), hex(addr))
+        return '#%s @ %s' % (hex(val), hex(addr))
     else:
-        cpu.ram(addr, mem)
         val = cpu.ram(addr)
-        return '#%s -> %s (%s)' % (hex(mem), hex(addr), hex(val))
+        cpu.ram(addr, mem)
+        return '#%s -> %s (%s)' % (hexf(mem), hexf(addr, 4), hexf(val))
 
 
-def dumpram(stop=None):
+def dumpram(*args): # stop
     global cur_addr
     out = ''
+
     if not stop:
         cur_addr += 1
         return pram(cur_addr - 1)
     for addr in range(cur_addr, cur_addr + stop):
         out += pram(addr) + '\n'
+
     return out
 
 
-def dumpregs():
+def reg(*args):
     out = ''
-    registers = (cpu.acc(), cpu.x(), cpu.y(), cpu.sp(), cpu.pc(), cpu.p())
-    vals = map(hex, registers)
-    zipped = zip(reg_names, vals)
-    joined = [x[0] + ' ' + x[1] + ' ' for x in zipped]
-    for w in joined:
-        out += w
+    registers = {'acc':cpu.acc, 'x':cpu.x, 'y':cpu.y,
+            'sp':cpu.sp, 'p':cpu.p}
+
+    if len(args) == 0:
+        data = map(lambda reg: reg(), registers.values())
+        matched = zip(registers, map(hexf, data)) + [('pc', hexf(cpu.pc(), 4))]
+        for r in [x[0]+' '+x[1]+' ' for x in matched]:
+            out += r
+    elif len(args) == 1:
+        if args[0] == 'pc':
+            padding, register = 4, cpu.pc
+        else:
+            padding, register = 2, registers[args[0]]
+        out = '%s %s' % (args[0], hexf(register(), padding))
+    elif len(args) == 2:
+        val = int(args[1], 16)
+        register = cpu.pc if args[0] not in registers else registers[args[0]]
+        pad = 4 if args[0] == 'pc' else 2
+        old = register() 
+
+        register(val)
+        out = '#%s -> %s (%s)' % \
+                (hexf(register(), pad), args[0], hexf(old, pad))
+
     return out
 
 
-def dumpflags():
+def dumpflags(*args):
     out = ''
     raw = bin(cpu.p())[2:]
     padded_raw = '0' * (8 - len(raw)) + raw
     formatted = ''
+
     for letter, bit in zip(flg_names, padded_raw):
         if bit == '1':
             formatted += letter.upper()
         else:
             formatted += letter.lower()
     out = padded_raw + ' ' + formatted
+
     return out
 
 
-def writebytestr(mem):  # special case: type(mem) == 'str'
-    global cur_addr
-    out = ''
-    mem = mem.replace(' ', '')
-    if mem[:2] == '0x':
-        mem = mem[2:]
-    elif len(mem) % 2:
-        mem = mem[:-1]
-    for byte_index in range(0, len(mem) - 1, 2):
-        byte = mem[byte_index] + mem[byte_index + 1]
-        pram(cur_addr, int(byte, 16))
-        out += '#' + hex(int(byte, 16)) + ' -> ' + hex(cur_addr) + '\n'
-        cur_addr = (cur_addr + 1) % 0x10000
-    return out
+def writebytes(*args): # mem
+    bytes = []
+
+    for arg in args:
+        cur = arg
+        if len(cur) % 2:
+            cur = '0' + cur
+        if len(cur) > 2:
+            cur = [int(cur[c:c + 2], 16) for c in range(0, len(cur), 2)]
+            bytes.extend(cur)
+        else:
+            bytes.append(int(cur, 16))
+    
+    output = ''
+
+    for pos in zip(bytes, range(cur_addr, cur_addr + len(bytes))):
+        byte, addr = pos[0], pos[1]
+        output += pram(byte, addr) + '\n'
+    else:
+        output = output.strip()
+
+    jumpto(cur_addr + len(bytes))
+
+    return output
 
 
-cmds = {
-    'step': (step,),
-    'reset': (reset,),
-    'cc': (jumpto,),
-    'pram': (pram,),
-    'acc': (preg, 'acc'),
-    'x': (preg, 'x'),
-    'y': (preg, 'y'),
-    'p': (preg, 'p'),
-    'sp': (preg, 'sp'),
-    'pc': (preg, 'pc'),
-    'dmp': (dumpram,),
-    'reg': (dumpregs,),
-    'flg': (dumpflags,),
-    'load': (load_file,),
-    'wri': writebytestr,
-}
+def _help(*args):
+    return ', '.join(sorted([w for w in cmds]))
 
 
-def process(str_in):
-    cmd_pkg = ()
+#
+# parsing, ui
 
-    if len(str_in) == 0:
-        return 'pass',
-    if 'exit' in str_in:
-        return 'exit',
-    if 'wri' in str_in:
-        return '!!!', 'bad input'
-    str_in = str_in.strip().split()
-    cmd_size = len(str_in)
+cmdpkg = namedtuple('cmdpkg', 'func args mina maxa')
 
-    if cmd_size == 2:
-        try:
-            str_in[1] = int(str_in[1], 16)
-        except ValueError:
-            return '!!!', 'bad input'
-    elif cmd_size == 3:
-        try:
-            str_in[1] = int(str_in[1], 16)
-            str_in[2] = int(str_in[2], 16)
-        except ValueError:
-            return '!!!', 'bad input'
-    elif cmd_size != 1:
-        return '!!!', 'bad input'
-    if str_in[0] not in cmds.keys():
-        try:
-            int(str_in[0], 16)
-            bytestr_in = str_in[0]
-            return [cmds['wri'], bytestr_in]
-        except ValueError:
-            return '!!!', 'bad input'
+cmds = {                            # 'exit' not included (handled in main)
+        'step':     {'func':step,       'mina':0, 'maxa':0},
+        'reset':    {'func':reset,      'mina':0, 'maxa':0},
+        'cc':       {'func':jumpto,     'mina':0, 'maxa':1},
+        'pram':     {'func':pram,       'mina':0, 'maxa':-1},
+        'dmp':      {'func':dumpram,    'mina':0, 'maxa':2},
+        'reg':      {'func':reg,        'mina':0, 'maxa':2},
+        'flg':      {'func':dumpflags,  'mina':0, 'maxa':0},
+        'wri':      {'func':writebytes, 'mina':1, 'maxa':-1},
+        'help':     {'func':_help,      'mina':0, 'maxa':-1},
+        }
 
-    cmd_func = cmds[str_in[0]]
-    cmd_pkg += cmd_func
-    if cmd_size > 1:
-        cmd_pkg += tuple(str_in[1:])
 
-    return cmd_pkg
+def parse(str_in):
+    str_in = str_in.split()
+    pre = cmds[str_in[0]] if str_in[0] in cmds.keys() else cmds['wri']
+
+    if len(str_in) == 1 and pre['func'] is not writebytes:
+        args = ()
+    elif pre['func'] is writebytes:
+        args = tuple(str_in) if str_in[0] != 'wri' else tuple(str_in[1:])
+    else:
+        args = tuple(str_in[1:])
+
+    func, mina, maxa = pre['func'], pre['mina'], pre['maxa']
+
+    if not (mina <= len(args) <= maxa) and maxa != -1:
+        raise TypeError
+
+    return cmdpkg(func=func, args=args, mina=mina, maxa=maxa)
 
 
 if __name__ == '__main__':
     print('hello')
+
     while True:
-        try:
-            str_in = input(hex(cur_addr).rstrip('L') + '> ')
-        except EOFError:
-            print('goodbye')
+        prompt_text = hexf(cur_addr, 4)
+        str_in = raw_input(prompt_text + '> ')
+
+        if 'exit' in str_in:
             break
-        cmd_pkg = process(str_in)
-        if 'exit' in cmd_pkg:
-            print('goodbye')
-            break
-        elif '!!!' in cmd_pkg:
-            print('%s...' % cmd_pkg[1])
-        elif 'pass' in cmd_pkg:
-            pass
-        else:
-            cmd = cmd_pkg[0]
-            args = cmd_pkg[1:]
-            output = cmd(*args)
-            if output:
-                print(output.strip())
-            pass
+        elif not len(str_in):
+            cmd = None
+        else: 
+            try:
+                cmd = parse(str_in)
+            except:
+                print('error parsing \'%s\'' % str_in)
+                cmd = None
+
+        #try:
+        output = cmd.func(*cmd.args) if cmd is not None else None
+        #except BaseException as error:
+        #    output = 'error: %s' % error
+
+        if output is not None and len(output):
+            for line in output.split('\n'):
+                print(' %s' % line)
+
+    print('goodbye')
 
