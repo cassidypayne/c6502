@@ -6,11 +6,9 @@ from collections import namedtuple
 
 cpu = C6502()
 cur_addr = 0x0
-reg_names = ('acc', 'x', 'y', 'sp', 'pc', 'p')
-flg_names = 'nv-bdizc'
 
-def hexf(i, l=2):
-    return '0x' + hex(i)[2:].zfill(l)
+def hexf(i, w=2): # w == width in nibbles
+    return '0x' + hex(i)[2:].zfill(w)
 
 
 #
@@ -42,17 +40,25 @@ def reset(*args):
     cpu = C6502()
 
 
-def pram(*args): # mem, addr
-    mem = args[0]
-    addr = None if not len(args) == 2 else args[1]
+def pram(*args): # addr, mem
+    if not len(args):
+        addr, mem = None, None
+    elif len(args) == 1:
+        addr, mem = args[0], None
+    elif len(args) == 2:
+        addr, mem = args[0], args[1],
+
+    addr = int(addr, 16) if type(addr) is str else addr
+    mem = int(mem, 16) if type(mem) is str else mem
 
     if addr is None:
         addr = cur_addr
+
     if mem is None:
         val = cpu.ram(addr)
-        return '#%s @ %s' % (hex(val), hex(addr))
+        return '%s -> #%s' % (hexf(addr, 4), hexf(val))
     else:
-        val = cpu.ram(addr)
+        val, mem = cpu.ram(addr), mem % 0x100
         cpu.ram(addr, mem)
         return '#%s -> %s (%s)' % (hexf(mem), hexf(addr, 4), hexf(val))
 
@@ -72,14 +78,17 @@ def dumpram(*args): # stop
 
 def reg(*args):
     out = ''
-    registers = {'acc':cpu.acc, 'x':cpu.x, 'y':cpu.y,
-            'sp':cpu.sp, 'p':cpu.p}
+    
+    # pc is handled separately because of its width
+    registers = {'acc':cpu.acc, 'x':cpu.x, 'y':cpu.y, 'sp':cpu.sp, 'p':cpu.p}
 
     if len(args) == 0:
         data = map(lambda reg: reg(), registers.values())
         matched = zip(registers, map(hexf, data)) + [('pc', hexf(cpu.pc(), 4))]
-        for r in [x[0]+' '+x[1]+' ' for x in matched]:
+        for r in [x[0] + ' ' + x[1] + ' ' for x in matched]:
             out += r
+        else:
+            out = out.strip()
     elif len(args) == 1:
         if args[0] == 'pc':
             padding, register = 4, cpu.pc
@@ -91,7 +100,6 @@ def reg(*args):
         register = cpu.pc if args[0] not in registers else registers[args[0]]
         pad = 4 if args[0] == 'pc' else 2
         old = register() 
-
         register(val)
         out = '#%s -> %s (%s)' % \
                 (hexf(register(), pad), args[0], hexf(old, pad))
@@ -100,19 +108,15 @@ def reg(*args):
 
 
 def dumpflags(*args):
-    out = ''
-    raw = bin(cpu.p())[2:]
-    padded_raw = '0' * (8 - len(raw)) + raw
-    formatted = ''
+    raw, formatted = bin(cpu.p())[2:], ''
 
-    for letter, bit in zip(flg_names, padded_raw):
+    for letter, bit in zip('nv-bdizc', '0' * (8 - len(raw)) + raw):
         if bit == '1':
             formatted += letter.upper()
-        else:
+        elif bit == '0':
             formatted += letter.lower()
-    out = padded_raw + ' ' + formatted
 
-    return out
+    return raw.zfill(8) + ' ' + formatted
 
 
 def writebytes(*args): # mem
@@ -123,16 +127,17 @@ def writebytes(*args): # mem
         if len(cur) % 2:
             cur = '0' + cur
         if len(cur) > 2:
-            cur = [int(cur[c:c + 2], 16) for c in range(0, len(cur), 2)]
+            cur = [cur[c:c + 2] for c in range(0, len(cur), 2)]
             bytes.extend(cur)
         else:
-            bytes.append(int(cur, 16))
-    
+            bytes.append(cur)
+
+    bytes = [int(byte, 16) for byte in bytes]
     output = ''
 
-    for pos in zip(bytes, range(cur_addr, cur_addr + len(bytes))):
-        byte, addr = pos[0], pos[1]
-        output += pram(byte, addr) + '\n'
+    for pos in zip(range(cur_addr, cur_addr + len(bytes)), bytes):
+        addr, byte = pos[0], pos[1]
+        output += pram(hex(addr), byte) + '\n'
     else:
         output = output.strip()
 
@@ -150,7 +155,7 @@ def _help(*args):
 
 cmdpkg = namedtuple('cmdpkg', 'func args mina maxa')
 
-cmds = {                            # 'exit' not included (handled in main)
+cmds = {            # 'exit' not included (handled in __main__)
         'step':     {'func':step,       'mina':0, 'maxa':0},
         'reset':    {'func':reset,      'mina':0, 'maxa':0},
         'cc':       {'func':jumpto,     'mina':0, 'maxa':1},
@@ -162,9 +167,8 @@ cmds = {                            # 'exit' not included (handled in main)
         'help':     {'func':_help,      'mina':0, 'maxa':-1},
         }
 
-
 def parse(str_in):
-    str_in = str_in.split()
+    str_in = str_in.replace('0x', '').split()
     pre = cmds[str_in[0]] if str_in[0] in cmds.keys() else cmds['wri']
 
     if len(str_in) == 1 and pre['func'] is not writebytes:
