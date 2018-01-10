@@ -1,5 +1,5 @@
 from c6502 import C6502
-from collections import namedtuple
+from collections import namedtuple, OrderedDict
 
 #
 # simple debugger / memory editor for c6502.
@@ -80,7 +80,8 @@ def reg(*args):
     out = ''
     
     # pc is handled separately because of its width
-    registers = {'acc':cpu.acc, 'x':cpu.x, 'y':cpu.y, 'sp':cpu.sp, 'p':cpu.p}
+    registers = OrderedDict([('acc', cpu.acc), ('x', cpu.x), ('y', cpu.y),
+            ('sp', cpu.sp)])
 
     if len(args) == 0:
         data = map(lambda reg: reg(), registers.values())
