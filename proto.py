@@ -1,8 +1,9 @@
-from c6502 import C6502
-from collections import namedtuple, OrderedDict
-
 #
 # simple debugger / memory editor for c6502.
+# python 2.7
+
+from c6502 import C6502
+from collections import namedtuple, OrderedDict
 
 cpu = C6502()
 cur_addr = 0x0
@@ -22,7 +23,7 @@ def jumpto(*args): # addr
     global cur_addr
 
     if not len(args):
-        addr = 0x0
+        addr = cpu.pc() 
     elif type(args[0]) is str:
         addr = int(args[0], base=16) % 0x10000
     elif type(args[0]) is int:
@@ -32,7 +33,18 @@ def jumpto(*args): # addr
 
 
 def step(*args):
-    cpu.step()
+    pcv = ['\tpc']
+
+    if len(args):
+        steps = int(args[0], 16)
+    else:
+        steps = 1
+
+    for step in range(steps):
+        cpu.step()
+        pcv.append(hexf(cpu.pc(), 4) + '\n')
+
+    return '\t-> '.join(pcv).strip()
 
 
 def reset(*args):
@@ -46,7 +58,7 @@ def pram(*args): # addr, mem
     elif len(args) == 1:
         addr, mem = args[0], None
     elif len(args) == 2:
-        addr, mem = args[0], args[1],
+        addr, mem = args
 
     addr = int(addr, 16) if type(addr) is str else addr
     mem = int(mem, 16) if type(mem) is str else mem
@@ -117,7 +129,7 @@ def dumpflags(*args):
         elif bit == '0':
             formatted += letter.lower()
 
-    return raw.zfill(8) + ' ' + formatted
+    return formatted + '\n' + raw.zfill(8)
 
 
 def writebytes(*args): # mem
@@ -157,7 +169,7 @@ def _help(*args):
 cmdpkg = namedtuple('cmdpkg', 'func args mina maxa')
 
 cmds = {            # 'exit' not included (handled in __main__)
-        'step':     {'func':step,       'mina':0, 'maxa':0},
+        'step':     {'func':step,       'mina':0, 'maxa':1},
         'reset':    {'func':reset,      'mina':0, 'maxa':0},
         'cc':       {'func':jumpto,     'mina':0, 'maxa':1},
         'pram':     {'func':pram,       'mina':0, 'maxa':-1},
@@ -193,11 +205,12 @@ if __name__ == '__main__':
     while True:
         prompt_text = hexf(cur_addr, 4)
         str_in = raw_input(prompt_text + '> ')
-
-        if 'exit' in str_in:
-            break
-        elif not len(str_in):
+        if not len(str_in) or str_in.isspace():
             cmd = None
+        elif '#' in str_in.lstrip():
+            cmd = None
+        elif 'exit' in str_in:
+            break
         else: 
             try:
                 cmd = parse(str_in)
@@ -205,10 +218,10 @@ if __name__ == '__main__':
                 print('error parsing \'%s\'' % str_in)
                 cmd = None
 
-        #try:
-        output = cmd.func(*cmd.args) if cmd is not None else None
-        #except BaseException as error:
-        #    output = 'error: %s' % error
+        try:
+            output = cmd.func(*cmd.args) if cmd is not None else None
+        except BaseException as error:
+            output = 'error: %s' % error
 
         if output is not None and len(output):
             for line in output.split('\n'):
