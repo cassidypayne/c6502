@@ -365,7 +365,7 @@ def TSX(cpu, mode, op):
 
 def TXA(cpu, mode, op):
     mem = cpu.x()
-    cpu.a(mem)
+    cpu.acc(mem)
     cpu.n(mem << 7)
     cpu.z(not mem)
 
@@ -377,6 +377,6 @@ def TXS(cpu, mode, op):
 
 def TYA(cpu, mode, op):
     mem = cpu.y()
-    cpu.a(mem)
+    cpu.acc(mem)
     cpu.n(mem << 7)
     cpu.z(not mem)
