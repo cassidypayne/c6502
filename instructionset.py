@@ -81,8 +81,11 @@ def BPL(cpu, mode, op):
         JMP(cpu, 'imm', mem)
 
 
-def BRK(cpu, mode, op):  # simulate IRQ -- to-do
-    pass
+def BRK(cpu, mode, op):
+    cpu.push(cpu.pc() >> 2)
+    cpu.push(cpu.pc() & 0xff)
+    cpu.push(cpu.p() | 0x10)
+    cpu.pc((cpu.ram(0xffff) << 2) | cpu.ram(0xfffe))
 
 
 def BVC(cpu, mode, op):
@@ -296,6 +299,7 @@ def ROR(cpu, mode, op):
 
 
 def RTI(cpu, mode, op):  # return from interrupt -- to-do
+    cpu.pull()
     pass
 
 
