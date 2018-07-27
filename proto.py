@@ -79,13 +79,18 @@ def dumpram(*args): # stop
     global cur_addr
     out = ''
 
+    try:
+        stop = int(args[0])
+    except KeyError:
+        stop = 0
+
     if not stop:
         cur_addr += 1
         return pram(cur_addr - 1)
     for addr in range(cur_addr, cur_addr + stop):
         out += pram(addr) + '\n'
 
-    return out
+    return out.strip()
 
 
 def reg(*args):
