@@ -82,7 +82,7 @@ def BPL(cpu, mode, op):
 
 
 def BRK(cpu, mode, op):
-    cpu.push(cpu.pc() >> 2)
+    cpu.push(cpu.pc() >> 8)
     cpu.push(cpu.pc() & 0xff)
     cpu.push(cpu.p() | 0x10)
     cpu.pc((cpu.ram(0xffff) << 8) | cpu.ram(0xfffe))
@@ -298,7 +298,7 @@ def ROR(cpu, mode, op):
     cpu.n(mem >> 7)
 
 
-def RTI(cpu, mode, op):  # return from interrupt -- to-do
+def RTI(cpu, mode, op):
     cpu.p(cpu.pull())
     lo = cpu.pull()
     hi = cpu.pull()
