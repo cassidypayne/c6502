@@ -85,7 +85,7 @@ def BRK(cpu, mode, op):
     cpu.push(cpu.pc() >> 2)
     cpu.push(cpu.pc() & 0xff)
     cpu.push(cpu.p() | 0x10)
-    cpu.pc((cpu.ram(0xffff) << 2) | cpu.ram(0xfffe))
+    cpu.pc((cpu.ram(0xffff) << 8) | cpu.ram(0xfffe))
 
 
 def BVC(cpu, mode, op):
@@ -299,8 +299,10 @@ def ROR(cpu, mode, op):
 
 
 def RTI(cpu, mode, op):  # return from interrupt -- to-do
-    cpu.pull()
-    pass
+    cpu.p(cpu.pull())
+    lo = cpu.pull()
+    hi = cpu.pull()
+    cpu.pc((hi << 8) | lo)
 
 
 def RTS(cpu, mode, op):
